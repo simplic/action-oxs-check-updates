@@ -1,0 +1,43 @@
+name: 'oxs-check-updates'
+description: 'Checks the updated files in a PR and give the folders from the files back.'
+
+branding:
+  icon: log-in
+  color: 'blue'
+
+inputs: 
+  searchFolder:
+    description: 'The folder in which the updated files will be checked.'
+    required: true
+
+outputs:
+  folders:
+    description: 'The folders in which the files was changed.'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Get changed files in the selected folder
+      id: changed-files-folder
+      uses: tj-actions/changed-files@v45
+      with:
+        files: ${{ inputs.searchFolder }}/**
+
+    - name: Extract changed folders and store in env variable
+      shell: bash
+      run: |
+        FOLDERS=()
+        IFS=$'\n'  # Set Internal Field Separator to handle file paths with spaces
+        for file in $(
+          echo "${{ steps.changed-files-folder.outputs.all_changed_files }}" | tr ' ' '\n'
+        ); do
+          folder=$(echo "$file" | cut -d'/' -f2)  # Extract the first-level folder under "selected folder/"
+          if [[ ! " ${FOLDERS[@]} " =~ " ${folder} " ]]; then  # Check for duplicates
+            FOLDERS+=("$folder")
+          fi
+        done
+        unset IFS  # Reset IFS to default
+        echo "folders=${FOLDERS[@]}" >> $GITHUB_ENV
