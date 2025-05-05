@@ -30,14 +30,24 @@ runs:
       shell: bash
       run: |
         FOLDERS=()
-        IFS=$'\n'  # Set Internal Field Separator to handle file paths with spaces
-        for file in $(
-          echo "${{ steps.changed-files-folder.outputs.all_changed_files }}" | tr ' ' '\n'
-        ); do
-          folder=$(echo "$file" | cut -d'/' -f2)  # Extract the first-level folder under "selected folder/"
-          if [[ ! " ${FOLDERS[@]} " =~ " ${folder} " ]]; then  # Check for duplicates
-            FOLDERS+=("$folder")
-          fi
+        IFS=$'\n'
+        declare -A folder_files
+
+        for file in $(echo "${{ steps.changed-files-folder.outputs.all_changed_files }}" | tr ' ' '\n'); do
+          folder=$(echo "$file" | cut -d'/' -f2)  # Get the immediate subfolder under the input folder
+          filename=$(basename "$file")
+
+          # Accumulate filenames per folder
+          folder_files["$folder"]+="$filename "
         done
-        unset IFS  # Reset IFS to default
+
+        for folder in "${!folder_files[@]}"; do
+          files=(${folder_files[$folder]})
+          # If only one file and it's manifest.json, skip
+          if [[ ${#files[@]} -eq 1 && "${files[0]}" == "manifest.json" ]]; then
+            continue
+          fi
+          FOLDERS+=("$folder")
+        done
+
         echo "folders=${FOLDERS[@]}" >> $GITHUB_ENV
