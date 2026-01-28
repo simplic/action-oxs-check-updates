@@ -36,14 +36,12 @@ runs:
           folder=$(echo "$file" | cut -d'/' -f2)
           filename=$(basename "$file")
     
-          # Count only NON-manifest files
           if [[ "$filename" != "manifest.json" ]]; then
-            ((non_manifest_count["$folder"]++))
+            non_manifest_count["$folder"]=$(( ${non_manifest_count["$folder"]:-0} + 1 ))
           fi
         done
     
         for folder in "${!non_manifest_count[@]}"; do
-          # Include folder only if at least one non-manifest file changed
           if [[ ${non_manifest_count["$folder"]} -gt 0 ]]; then
             FOLDERS+=("$folder")
           fi
