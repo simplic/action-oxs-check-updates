@@ -32,22 +32,19 @@ runs:
         declare -A folder_files
         FOLDERS=()
     
-        while IFS= read -r file; do
-          # Remove the searchFolder prefix
-          relative="${file#${{ inputs.searchFolder }}/}"
-    
-          # Get the first directory under searchFolder
-          folder="${relative%%/*}"
-    
-          filename="$(basename "$file")"
+        # Split space-separated output safely
+        for file in ${{ steps.changed-files-folder.outputs.all_changed_files }}; do
+          # Expect: remotes/<folder>/<file>
+          folder=$(echo "$file" | cut -d'/' -f2)
+          filename=$(basename "$file")
     
           folder_files["$folder"]+="$filename"$'\n'
-        done <<< "${{ steps.changed-files-folder.outputs.all_changed_files }}"
+        done
     
         for folder in "${!folder_files[@]}"; do
           mapfile -t files <<< "${folder_files[$folder]}"
     
-          # Skip folder if ONLY manifest.json was changed
+          # Skip if ONLY manifest.json was changed
           if [[ ${#files[@]} -eq 1 && "${files[0]}" == "manifest.json" ]]; then
             continue
           fi
