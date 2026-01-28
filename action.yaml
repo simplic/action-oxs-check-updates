@@ -29,25 +29,30 @@ runs:
     - name: Extract changed folders and store in env variable
       shell: bash
       run: |
-        FOLDERS=()
-        IFS=$'\n'
         declare -A folder_files
-
-        for file in $(echo "${{ steps.changed-files-folder.outputs.all_changed_files }}" | tr ' ' '\n'); do
-          folder=$(echo "$file" | cut -d'/' -f2)  # Get the immediate subfolder under the input folder
-          filename=$(basename "$file")
-
-          # Accumulate filenames per folder
-          folder_files["$folder"]+="$filename "
-        done
-
+        FOLDERS=()
+    
+        while IFS= read -r file; do
+          # Remove the searchFolder prefix
+          relative="${file#${{ inputs.searchFolder }}/}"
+    
+          # Get the first directory under searchFolder
+          folder="${relative%%/*}"
+    
+          filename="$(basename "$file")"
+    
+          folder_files["$folder"]+="$filename"$'\n'
+        done <<< "${{ steps.changed-files-folder.outputs.all_changed_files }}"
+    
         for folder in "${!folder_files[@]}"; do
-          files=(${folder_files[$folder]})
-          # If only one file and it's manifest.json, skip
+          mapfile -t files <<< "${folder_files[$folder]}"
+    
+          # Skip folder if ONLY manifest.json was changed
           if [[ ${#files[@]} -eq 1 && "${files[0]}" == "manifest.json" ]]; then
             continue
           fi
+    
           FOLDERS+=("$folder")
         done
-
-        echo "folders=${FOLDERS[@]}" >> $GITHUB_ENV
+    
+        echo "folders=${FOLDERS[*]}" >> "$GITHUB_ENV"
